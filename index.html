@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Acompanhamento de Coleta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide-react@0.378.0/dist/umd/lucide.min.js"></script>
+    <style>
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .status-pendente { background-color: #fef08a; color: #a16207; border: 1px solid #facc15; }
+        .status-aceito { background-color: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+        .status-em-andamento { background-color: #fed7aa; color: #c2410c; border: 1px solid #fb923c; }
+        .status-concluido { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .status-cancelado { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+        @media (max-width: 768px) {
+            table thead {
+                display: none;
+            }
+            table, table tbody, table tr, table td {
+                display: block;
+                width: 100%;
+            }
+            table tr {
+                margin-bottom: 1rem;
+                border: 1px solid #ddd;
+                border-radius: 0.5rem;
+                padding: 0.5rem;
+            }
+            table td {
+                text-align: right;
+                padding-left: 50%;
+                position: relative;
+                border-bottom: 1px dotted #ddd;
+            }
+            table td:last-child {
+                border-bottom: none;
+            }
+            table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0.5rem;
+                width: 45%;
+                padding-right: 0.5rem;
+                font-weight: bold;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="container mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800">Painel de Acompanhamento de Coleta</h1>
+
+        <div class="mb-4 flex flex-col sm:flex-row gap-4">
+            <div class="flex-1">
+                <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Status:</label>
+                <select id="statusFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="todos">Todos</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="aceito">Aceito</option>
+                    <option value="em andamento">Em Andamento</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+             </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 hidden md:table-header-group">
+                    <tr>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pedido</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geradora</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Agendada</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endereço (Resumo)</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaPedidos" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+            </table>
+        </div>
+         <p id="noResults" class="text-center text-gray-500 mt-4" style="display: none;">Nenhum pedido encontrado com os filtros selecionados.</p>
+    </div>
+
+    <div id="pedidoModal" class="modal" style="display: none;">
+        <div class="modal-content animate-fade-in">
+            <span class="close-button" onclick="fecharModal()">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Detalhes do Pedido <span id="modalPedidoId" class="font-mono"></span></h2>
+
+            <div class="space-y-3 text-sm text-gray-700">
+                <p><strong>Geradora:</strong> <span id="modalGeradoraId"></span></p>
+                <p><strong>Contato Geradora:</strong> <span id="modalGeradoraContato"></span></p>
+                <p><strong>Endereço de Coleta:</strong> <span id="modalEndereco"></span></p>
+                <p><strong>Informações do Resíduo:</strong> <span id="modalResiduo"></span></p>
+                <p><strong>Data Solicitação:</strong> <span id="modalDataSolicitacao"></span></p>
+                <p><strong>Data Agendamento:</strong> <span id="modalDataAgendamento"></span></p>
+                <p><strong>Status Atual:</strong> <span id="modalStatusAtual" class="px-2 py-1 rounded-md text-xs font-medium"></span></p>
+                <p id="modalMotivoCancelamentoContainer" style="display: none;"><strong>Motivo Cancelamento:</strong> <span id="modalMotivoCancelamento"></span></p>
+            </div>
+
+            <hr class="my-4">
+
+            <div id="modalAcoes" class="mt-4 space-x-2 flex flex-wrap gap-2 justify-end">
+                </div>
+
+             <div id="motivoCancelamentoInputContainer" class="mt-4" style="display: none;">
+                 <label for="motivoCancelamentoInput" class="block text-sm font-medium text-gray-700 mb-1">Motivo do Cancelamento:</label>
+                 <textarea id="motivoCancelamentoInput" rows="2" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Descreva o motivo do cancelamento..."></textarea>
+                 <button onclick="confirmarCancelamento()" class="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Confirmar Cancelamento</button>
+                 <button onclick="cancelarAcaoCancelamento()" class="mt-2 px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">Voltar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        let pedidos = [
+            {
+                ID_Pedido: "P001",
+                Geradora_Identificacao: "Empresa Alpha Ltda (CNPJ: 11.222.333/0001-44)",
+                Geradora_Contato: "João Silva - (11) 99999-1111 - joao.silva@alpha.com",
+                Endereco_Coleta: "Rua das Palmeiras, 123, Centro, São Paulo, SP, 01000-000",
+                Residuo_Informacoes: "Resíduo Classe II A - Não Inerte (Papelão, Plástico), Aprox. 5m³, Acondicionado em bags",
+                Data_Solicitacao: "2025-05-10", Hora_Solicitacao: "09:30",
+                Data_Agendamento_Coleta: "2025-05-15", Hora_Agendamento_Coleta: "14:00",
+                Status_Pedido: "pendente",
+                Motivo_Cancelamento: null
+            },
+            {
+                ID_Pedido: "P002",
+                Geradora_Identificacao: "Indústria Beta S.A. (Cod: CLI-5678)",
+                Geradora_Contato: "Maria Oliveira - (21) 98888-2222 - maria.oliveira@beta.com",
+                Endereco_Coleta: "Av. Industrial, 456, Distrito Industrial, Rio de Janeiro, RJ, 20000-000",
+                Residuo_Informacoes: "Resíduo Classe I - Perigoso (Óleo Contaminado), Aprox. 2 Tambores de 200L",
+                Data_Solicitacao: "2025-05-11", Hora_Solicitacao: "11:00",
+                Data_Agendamento_Coleta: "2025-05-16", Hora_Agendamento_Coleta: "10:00",
+                Status_Pedido: "aceito",
+                 Motivo_Cancelamento: null
+            },
+            {
+                ID_Pedido: "P003",
+                Geradora_Identificacao: "Comércio Gama Eireli (CNPJ: 44.555.666/0001-77)",
+                Geradora_Contato: "Carlos Pereira - (31) 97777-3333 - carlos.pereira@gama.com",
+                Endereco_Coleta: "Praça da Liberdade, 789, Savassi, Belo Horizonte, MG, 30140-011",
+                Residuo_Informacoes: "Resíduo Orgânico (Restaurante), Aprox. 100kg/dia, Contentores Plásticos",
+                Data_Solicitacao: "2025-05-12", Hora_Solicitacao: "08:15",
+                Data_Agendamento_Coleta: "2025-05-14", Hora_Agendamento_Coleta: "09:00",
+                Status_Pedido: "em andamento",
+                 Motivo_Cancelamento: null
+            },
+             {
+                ID_Pedido: "P004",
+                Geradora_Identificacao: "Hospital Delta (Cod: HOSP-9101)",
+                Geradora_Contato: "Ana Souza - (41) 96666-4444 - ana.souza@delta.com",
+                Endereco_Coleta: "Alameda dos Anjos, 1011, Batel, Curitiba, PR, 80000-000",
+                Residuo_Informacoes: "Resíduo de Serviço de Saúde - Grupo A (Infectante), 5 Bombonas",
+                Data_Solicitacao: "2025-05-09", Hora_Solicitacao: "15:00",
+                Data_Agendamento_Coleta: "2025-05-13", Hora_Agendamento_Coleta: "11:00",
+                Status_Pedido: "concluido",
+                 Motivo_Cancelamento: null
+            },
+             {
+                ID_Pedido: "P005",
+                Geradora_Identificacao: "Oficina Épsilon Ltda (CNPJ: 77.888.999/0001-00)",
+                Geradora_Contato: "Pedro Martins - (51) 95555-5555 - pedro.martins@epsilon.com",
+                Endereco_Coleta: "Rua dos Andradas, 1213, Centro Histórico, Porto Alegre, RS, 90000-000",
+                Residuo_Informacoes: "Estopas contaminadas com óleo, 2 Sacos Grandes",
+                Data_Solicitacao: "2025-05-11", Hora_Solicitacao: "14:20",
+                Data_Agendamento_Coleta: "2025-05-18", Hora_Agendamento_Coleta: "16:00",
+                Status_Pedido: "cancelado",
+                Motivo_Cancelamento: "Cliente solicitou cancelamento por reagendamento interno."
+            }
+        ];
+
+        const tabelaPedidosBody = document.getElementById('tabelaPedidos');
+        const statusFilter = document.getElementById('statusFilter');
+        const pedidoModal = document.getElementById('pedidoModal');
+        const modalPedidoId = document.getElementById('modalPedidoId');
+        const modalGeradoraId = document.getElementById('modalGeradoraId');
+        const modalGeradoraContato = document.getElementById('modalGeradoraContato');
+        const modalEndereco = document.getElementById('modalEndereco');
+        const modalResiduo = document.getElementById('modalResiduo');
+        const modalDataSolicitacao = document.getElementById('modalDataSolicitacao');
+        const modalDataAgendamento = document.getElementById('modalDataAgendamento');
+        const modalStatusAtual = document.getElementById('modalStatusAtual');
+        const modalAcoes = document.getElementById('modalAcoes');
+        const noResults = document.getElementById('noResults');
+        const motivoCancelamentoContainer = document.getElementById('motivoCancelamentoInputContainer');
+        const motivoCancelamentoInput = document.getElementById('motivoCancelamentoInput');
+        const modalMotivoCancelamentoContainer = document.getElementById('modalMotivoCancelamentoContainer');
+        const modalMotivoCancelamento = document.getElementById('modalMotivoCancelamento');
+
+        let pedidoSelecionadoId = null;
+
+        function formatarData(dataISO) {
+            if (!dataISO) return '-';
+            const [ano, mes, dia] = dataISO.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        function formatarHora(hora) {
+            return hora ? hora.substring(0, 5) : '-';
+        }
+
+        function getStatusInfo(status) {
+            switch (status) {
+                case 'pendente': return { text: 'Pendente', class: 'status-pendente' };
+                case 'aceito': return { text: 'Aceito', class: 'status-aceito' };
+                case 'em andamento': return { text: 'Em Andamento', class: 'status-em-andamento' };
+                case 'concluido': return { text: 'Concluído', class: 'status-concluido' };
+                case 'cancelado': return { text: 'Cancelado', class: 'status-cancelado' };
+                default: return { text: status, class: 'bg-gray-200 text-gray-800' };
+            }
+        }
+
+        function renderizarTabela(pedidosFiltrados) {
+            tabelaPedidosBody.innerHTML = '';
+            noResults.style.display = pedidosFiltrados.length === 0 ? 'block' : 'none';
+
+            pedidosFiltrados.forEach(pedido => {
+                const statusInfo = getStatusInfo(pedido.Status_Pedido);
+                const enderecoResumido = pedido.Endereco_Coleta.split(',').slice(0, 3).join(',');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" data-label="ID Pedido">${pedido.ID_Pedido}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500" data-label="Geradora">${pedido.Geradora_Identificacao.split('(')[0].trim()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500" data-label="Data Agendada">${formatarData(pedido.Data_Agendamento_Coleta)} ${formatarHora(pedido.Hora_Agendamento_Coleta)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" data-label="Endereço">${enderecoResumido}...</td>
+                    <td class="px-4 py-3 whitespace-nowrap" data-label="Status">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusInfo.class}">
+                            ${statusInfo.text}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium" data-label="Ações">
+                        <button onclick="abrirModal('${pedido.ID_Pedido}')" class="text-indigo-600 hover:text-indigo-900 focus:outline-none">
+                            Detalhes/Ações
+                        </button>
+                    </td>
+                `;
+                tabelaPedidosBody.appendChild(tr);
+            });
+
+             if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function filtrarPedidos() {
+            const status = statusFilter.value;
+            const pedidosFiltrados = pedidos.filter(p => status === 'todos' || p.Status_Pedido === status);
+            renderizarTabela(pedidosFiltrados);
+        }
+
+        function abrirModal(idPedido) {
+            pedidoSelecionadoId = idPedido;
+            const pedido = pedidos.find(p => p.ID_Pedido === idPedido);
+            if (!pedido) return;
+
+            modalPedidoId.textContent = pedido.ID_Pedido;
+            modalGeradoraId.textContent = pedido.Geradora_Identificacao;
+            modalGeradoraContato.textContent = pedido.Geradora_Contato;
+            modalEndereco.textContent = pedido.Endereco_Coleta;
+            modalResiduo.textContent = pedido.Residuo_Informacoes;
+            modalDataSolicitacao.textContent = `${formatarData(pedido.Data_Solicitacao)} ${formatarHora(pedido.Hora_Solicitacao)}`;
+            modalDataAgendamento.textContent = `${formatarData(pedido.Data_Agendamento_Coleta)} ${formatarHora(pedido.Hora_Agendamento_Coleta)}`;
+
+            const statusInfo = getStatusInfo(pedido.Status_Pedido);
+            modalStatusAtual.textContent = statusInfo.text;
+            modalStatusAtual.className = `px-2 py-1 rounded-md text-xs font-medium ${statusInfo.class}`;
+
+            if (pedido.Status_Pedido === 'cancelado' && pedido.Motivo_Cancelamento) {
+                modalMotivoCancelamento.textContent = pedido.Motivo_Cancelamento;
+                modalMotivoCancelamentoContainer.style.display = 'block';
+            } else {
+                modalMotivoCancelamentoContainer.style.display = 'none';
+            }
+
+            modalAcoes.innerHTML = '';
+            motivoCancelamentoContainer.style.display = 'none';
+
+            if (pedido.Status_Pedido === 'pendente') {
+                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'aceito')" class="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Marcar como Aceito</button>`;
+                modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Cancelar Pedido</button>`;
+            } else if (pedido.Status_Pedido === 'aceito') {
+                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'em andamento')" class="px-3 py-1.5 bg-orange-500 text-white text-xs rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">Iniciar Coleta (Em Andamento)</button>`;
+                 modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Cancelar Pedido</button>`;
+            } else if (pedido.Status_Pedido === 'em andamento') {
+                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'concluido')" class="px-3 py-1.5 bg-green-500 text-white text-xs rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Marcar como Concluído</button>`;
+
+                /*modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600">Cancelar Pedido</button>`;*/
+            }
+            
+             else if (pedido.Status_Pedido === 'concluido' || pedido.Status_Pedido === 'cancelado') {
+                 modalAcoes.innerHTML = '<p class="text-sm text-gray-500">Nenhuma ação disponível para este status.</p>';
+             }
+
+            pedidoModal.style.display = 'flex';
+        }
+        
+        function fecharModal() {
+            pedidoModal.style.display = 'none';
+            motivoCancelamentoContainer.style.display = 'none';
+            motivoCancelamentoInput.value = '';
+            pedidoSelecionadoId = null;
+        }
+
+        function atualizarStatus(idPedido, novoStatus, motivo = null) {
+            const index = pedidos.findIndex(p => p.ID_Pedido === idPedido);
+            if (index !== -1) {
+                pedidos[index].Status_Pedido = novoStatus;
+                 if (novoStatus === 'cancelado') {
+                    pedidos[index].Motivo_Cancelamento = motivo;
+                } else {
+                     pedidos[index].Motivo_Cancelamento = null;
+                 }
+                console.log(`Pedido ${idPedido} atualizado para ${novoStatus}`);
+                filtrarPedidos();
+                fecharModal();
+            }
+        }
+
+        function iniciarCancelamento() {
+            modalAcoes.style.display = 'none';
+            motivoCancelamentoContainer.style.display = 'block';
+        }
+
+        function confirmarCancelamento() {
+            const motivo = motivoCancelamentoInput.value.trim();
+            if (!motivo) {
+                alert("Por favor, informe o motivo do cancelamento.");
+                return;
+            }
+            if (pedidoSelecionadoId) {
+                atualizarStatus(pedidoSelecionadoId, 'cancelado', motivo);
+            }
+            
+            motivoCancelamentoInput.value = '';
+            motivoCancelamentoContainer.style.display = 'none';
+            modalAcoes.style.display = 'flex';
+        }
+
+        function cancelarAcaoCancelamento() {
+             motivoCancelamentoInput.value = '';
+             motivoCancelamentoContainer.style.display = 'none';
+             modalAcoes.style.display = 'flex';
+        }
+
+        statusFilter.addEventListener('change', filtrarPedidos);
+        window.onclick = function(event) {
+            if (event.target == pedidoModal) {
+                fecharModal();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            filtrarPedidos();
+
+             if (window.lucide) {
+                lucide.createIcons();
+            }
+        });
+
+    </script>
+
+</body>
+</html>
