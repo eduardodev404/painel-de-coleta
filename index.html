@@ -6,8 +6,8 @@
     <title>Painel de Acompanhamento de Coleta</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide-react@0.378.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        
         body {
             font-family: 'Inter', sans-serif;
         }
@@ -21,19 +21,22 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.6);
             align-items: center;
             justify-content: center;
+            padding: 1rem;
         }
         .modal-content {
             background-color: #fefefe;
             margin: auto;
-            padding: 20px;
+            padding: 25px;
             border: 1px solid #888;
-            width: 80%;
-            max-width: 600px;
+            width: 90%;
+            max-width: 700px;
             border-radius: 8px;
             position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .close-button {
             color: #aaa;
@@ -47,180 +50,211 @@
         .close-button:hover,
         .close-button:focus {
             color: black;
-            text-decoration: none;
-            cursor: pointer;
         }
-        .status-pendente { background-color: #fef08a; color: #a16207; border: 1px solid #facc15; }
-        .status-aceito { background-color: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-        .status-em-andamento { background-color: #fed7aa; color: #c2410c; border: 1px solid #fb923c; }
-        .status-concluido { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-        .status-cancelado { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+        .status-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; border: 1px solid transparent;}
+        .status-pendente { background-color: #fef9c3; color: #a16207; border-color: #fde047; }
+        .status-aceito { background-color: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+        .status-em-andamento { background-color: #ffedd5; color: #c2410c; border-color: #fdba74; }
+        .status-concluido { background-color: #dcfce7; color: #15803d; border-color: #86efac; }
+        .status-cancelado { background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.9rem;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+
+        th[data-sortable] { cursor: pointer; user-select: none; }
+        th[data-sortable]:hover { background-color: #e5e7eb; }
+        .sort-indicator {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 5px;
+            opacity: 0.5;
+            width: 1em;
+        }
+        th.sorted .sort-indicator { opacity: 1; }
 
         @media (max-width: 768px) {
-            table thead {
-                display: none;
-            }
-            table, table tbody, table tr, table td {
-                display: block;
-                width: 100%;
-            }
-            table tr {
-                margin-bottom: 1rem;
-                border: 1px solid #ddd;
-                border-radius: 0.5rem;
-                padding: 0.5rem;
-            }
-            table td {
-                text-align: right;
-                padding-left: 50%;
-                position: relative;
-                border-bottom: 1px dotted #ddd;
-            }
-            table td:last-child {
-                border-bottom: none;
-            }
-            table td::before {
-                content: attr(data-label);
-                position: absolute;
-                left: 0.5rem;
-                width: 45%;
-                padding-right: 0.5rem;
-                font-weight: bold;
-                text-align: left;
-            }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 1rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem; background-color: white; }
+            table td { text-align: right; padding-left: 50%; position: relative; border-bottom: 1px dotted #e5e7eb; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            table td:last-child { border-bottom: none; }
+            table td::before { content: attr(data-label); position: absolute; left: 0.5rem; width: 45%; padding-right: 0.5rem; font-weight: 600; text-align: left; color: #4b5563; }
         }
     </style>
 </head>
-<body class="bg-green-50 p-4 md:p-8">
+<body class="bg-green-50 p-4 md:p-8 text-gray-800">
 
-    <div class="container mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-6 text-gray-800">Painel de Acompanhamento de Coleta</h1>
+    <div id="toastContainer"></div>
 
-        <div class="mb-4 flex flex-col sm:flex-row gap-4">
-            <div class="flex-1">
-                <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Status:</label>
-                <select id="statusFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="todos">Todos</option>
-                    <option value="pendente">Pendente</option>
-                    <option value="aceito">Aceito</option>
-                    <option value="em andamento">Em Andamento</option>
-                    <option value="concluido">Concluído</option>
-                    <option value="cancelado">Cancelado</option>
-                </select>
-            </div>
-             </div>
+    <div class="container mx-auto space-y-6">
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 hidden md:table-header-group">
-                    <tr>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pedido</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geradora</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Agendada</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endereço (Resumo)</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaPedidos" class="bg-white divide-y divide-gray-200">
-                    </tbody>
-            </table>
+        <div class="bg-white p-4 rounded-lg shadow-md">
+            <h2 class="text-lg font-semibold mb-3 text-gray-700">Resumo dos Pedidos</h2>
+            <div id="dashboardMetrics" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
+                </div>
         </div>
-         <p id="noResults" class="text-center text-gray-500 mt-4" style="display: none;">Nenhum pedido encontrado com os filtros selecionados.</p>
+
+        <div class="bg-white p-6 rounded-lg shadow-md space-y-4">
+            <h2 class="text-lg font-semibold text-gray-700">Filtros e Busca</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="globalSearch" class="block text-sm font-medium text-gray-700 mb-1">Busca Rápida:</label>
+                    <input type="search" id="globalSearch" placeholder="Buscar por ID, Geradora, Endereço..." class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Status:</label>
+                    <select id="statusFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="todos">Todos</option>
+                        <option value="pendente">Pendente</option>
+                        <option value="aceito">Aceito</option>
+                        <option value="em andamento">Em Andamento</option>
+                        <option value="concluido">Concluído</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                </div>
+                 <div>
+                    <label for="geradoraFilter" class="block text-sm font-medium text-gray-700 mb-1">Geradora:</label>
+                    <input type="text" id="geradoraFilter" placeholder="Nome ou CNPJ da Geradora" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                 <div>
+                    <label for="dataInicioFilter" class="block text-sm font-medium text-gray-700 mb-1">Data Agend. Início:</label>
+                    <input type="date" id="dataInicioFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                 <div>
+                    <label for="dataFimFilter" class="block text-sm font-medium text-gray-700 mb-1">Data Agend. Fim:</label>
+                    <input type="date" id="dataFimFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="flex justify-end space-x-2">
+                     <button id="clearFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm inline-flex items-center gap-1">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Limpar Filtros
+                    </button>
+                    <button id="exportCsv" class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 text-sm inline-flex items-center gap-1">
+                        <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 hidden md:table-header-group">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-sortable data-sort-key="ID_Pedido">ID Pedido <span class="sort-indicator"></span></th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-sortable data-sort-key="Geradora_Identificacao">Geradora <span class="sort-indicator"></span></th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-sortable data-sort-key="Data_Agendamento_Coleta">Data Agendada <span class="sort-indicator"></span></th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endereço (Resumo)</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-sortable data-sort-key="Status_Pedido">Status <span class="sort-indicator"></span></th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaPedidos" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+             <p id="noResults" class="text-center text-gray-500 mt-4 py-4" style="display: none;">Nenhum pedido encontrado com os filtros selecionados.</p>
+
+             <div id="paginationControls" class="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
+                 <div class="text-sm text-gray-600">
+                    Mostrando <span id="pageInfoFrom"></span> a <span id="pageInfoTo"></span> de <span id="pageInfoTotal"></span> resultados
+                </div>
+                <div class="flex gap-1">
+                    <button id="prevPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1">
+                         <i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior
+                    </button>
+                    <button id="nextPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1">
+                        Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="pedidoModal" class="modal" style="display: none;">
-        <div class="modal-content animate-fade-in">
+    <div id="pedidoModal" class="modal">
+        <div class="modal-content">
             <span class="close-button" onclick="fecharModal()">&times;</span>
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Detalhes do Pedido <span id="modalPedidoId" class="font-mono"></span></h2>
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
+                <i data-lucide="file-text" class="w-5 h-5 text-indigo-600"></i>
+                Detalhes do Pedido <span id="modalPedidoId" class="font-mono bg-gray-100 px-2 py-0.5 rounded text-base"></span>
+            </h2>
 
-            <div class="space-y-3 text-sm text-gray-700">
-                <p><strong>Geradora:</strong> <span id="modalGeradoraId"></span></p>
-                <p><strong>Contato Geradora:</strong> <span id="modalGeradoraContato"></span></p>
-                <p><strong>Endereço de Coleta:</strong> <span id="modalEndereco"></span></p>
-                <p><strong>Informações do Resíduo:</strong> <span id="modalResiduo"></span></p>
-                <p><strong>Data Solicitação:</strong> <span id="modalDataSolicitacao"></span></p>
-                <p><strong>Data Agendamento:</strong> <span id="modalDataAgendamento"></span></p>
-                <p><strong>Status Atual:</strong> <span id="modalStatusAtual" class="px-2 py-1 rounded-md text-xs font-medium"></span></p>
-                <p id="modalMotivoCancelamentoContainer" style="display: none;"><strong>Motivo Cancelamento:</strong> <span id="modalMotivoCancelamento"></span></p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm text-gray-700 mb-4">
+                <div><strong><i data-lucide="factory" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Geradora:</strong> <span id="modalGeradoraId"></span></div>
+                <div><strong><i data-lucide="phone" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Contato Geradora:</strong> <span id="modalGeradoraContato"></span></div>
+                <div class="md:col-span-2"><strong><i data-lucide="map-pin" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Endereço de Coleta:</strong> <span id="modalEndereco"></span></div>
+                <div class="md:col-span-2"><strong><i data-lucide="recycle" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Informações do Resíduo:</strong> <span id="modalResiduo" class="block mt-1 p-2 bg-gray-50 rounded border border-gray-200 text-xs"></span></div>
+                <div><strong><i data-lucide="calendar-plus" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Data Solicitação:</strong> <span id="modalDataSolicitacao"></span></div>
+                <div><strong><i data-lucide="calendar-check" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Data Agendamento:</strong> <span id="modalDataAgendamento"></span></div>
+                 <div><strong><i data-lucide="activity" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Status Atual:</strong> <span id="modalStatusAtual" class="status-badge"></span></div>
+                 <div id="modalMotivoCancelamentoContainer" style="display: none;"><strong><i data-lucide="message-square-warning" class="w-4 h-4 inline-block mr-1 text-gray-500"></i>Motivo Cancelamento:</strong> <span id="modalMotivoCancelamento" class="text-red-700"></span></div>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="text-md font-semibold mb-2 text-gray-700 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4 text-gray-500"></i>Histórico de Status</h3>
+                <ul id="modalLogStatus" class="list-disc list-inside text-xs text-gray-600 space-y-1 max-h-24 overflow-y-auto bg-gray-50 p-2 rounded border border-gray-200">
+                    </ul>
             </div>
 
             <hr class="my-4">
 
-            <div id="modalAcoes" class="mt-4 space-x-2 flex flex-wrap gap-2 justify-end">
+            <div id="modalAcoesContainer">
+                <div id="modalAcoes" class="mt-4 flex flex-wrap gap-2 justify-end">
+                    </div>
+                <div id="motivoCancelamentoInputContainer" class="mt-4 border-t pt-4" style="display: none;">
+                     <label for="motivoCancelamentoInput" class="block text-sm font-medium text-gray-700 mb-1">Motivo do Cancelamento:</label>
+                     <textarea id="motivoCancelamentoInput" rows="2" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500" placeholder="Descreva o motivo do cancelamento..."></textarea>
+                     <div class="mt-2 flex justify-end gap-2">
+                        <button onclick="cancelarAcaoCancelamento()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm inline-flex items-center gap-1">
+                            <i data-lucide="x" class="w-4 h-4"></i> Voltar
+                        </button>
+                        <button onclick="confirmarCancelamento()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 text-sm inline-flex items-center gap-1">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i> Confirmar Cancelamento
+                        </button>
+                    </div>
                 </div>
-
-             <div id="motivoCancelamentoInputContainer" class="mt-4" style="display: none;">
-                 <label for="motivoCancelamentoInput" class="block text-sm font-medium text-gray-700 mb-1">Motivo do Cancelamento:</label>
-                 <textarea id="motivoCancelamentoInput" rows="2" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Descreva o motivo do cancelamento..."></textarea>
-                 <button onclick="confirmarCancelamento()" class="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Confirmar Cancelamento</button>
-                 <button onclick="cancelarAcaoCancelamento()" class="mt-2 px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">Voltar</button>
             </div>
+
         </div>
     </div>
 
     <script>
 
         let pedidos = [
-            {
-                ID_Pedido: "P001",
-                Geradora_Identificacao: "Empresa Alpha Ltda (CNPJ: 11.222.333/0001-44)",
-                Geradora_Contato: "João Silva - (11) 99999-1111 - joao.silva@alpha.com",
-                Endereco_Coleta: "Rua das Palmeiras, 123, Centro, São Paulo, SP, 01000-000",
-                Residuo_Informacoes: "Resíduo Classe II A - Não Inerte (Papelão, Plástico), Aprox. 5m³, Acondicionado em bags",
-                Data_Solicitacao: "2025-05-10", Hora_Solicitacao: "09:30",
-                Data_Agendamento_Coleta: "2025-05-15", Hora_Agendamento_Coleta: "14:00",
-                Status_Pedido: "pendente",
-                Motivo_Cancelamento: null
-            },
-            {
-                ID_Pedido: "P002",
-                Geradora_Identificacao: "Indústria Beta S.A. (Cod: CLI-5678)",
-                Geradora_Contato: "Maria Oliveira - (21) 98888-2222 - maria.oliveira@beta.com",
-                Endereco_Coleta: "Av. Industrial, 456, Distrito Industrial, Rio de Janeiro, RJ, 20000-000",
-                Residuo_Informacoes: "Resíduo Classe I - Perigoso (Óleo Contaminado), Aprox. 2 Tambores de 200L",
-                Data_Solicitacao: "2025-05-11", Hora_Solicitacao: "11:00",
-                Data_Agendamento_Coleta: "2025-05-16", Hora_Agendamento_Coleta: "10:00",
-                Status_Pedido: "aceito",
-                 Motivo_Cancelamento: null
-            },
-            {
-                ID_Pedido: "P003",
-                Geradora_Identificacao: "Comércio Gama Eireli (CNPJ: 44.555.666/0001-77)",
-                Geradora_Contato: "Carlos Pereira - (31) 97777-3333 - carlos.pereira@gama.com",
-                Endereco_Coleta: "Praça da Liberdade, 789, Savassi, Belo Horizonte, MG, 30140-011",
-                Residuo_Informacoes: "Resíduo Orgânico (Restaurante), Aprox. 100kg/dia, Contentores Plásticos",
-                Data_Solicitacao: "2025-05-12", Hora_Solicitacao: "08:15",
-                Data_Agendamento_Coleta: "2025-05-14", Hora_Agendamento_Coleta: "09:00",
-                Status_Pedido: "em andamento",
-                 Motivo_Cancelamento: null
-            },
-             {
-                ID_Pedido: "P004",
-                Geradora_Identificacao: "Hospital Delta (Cod: HOSP-9101)",
-                Geradora_Contato: "Ana Souza - (41) 96666-4444 - ana.souza@delta.com",
-                Endereco_Coleta: "Alameda dos Anjos, 1011, Batel, Curitiba, PR, 80000-000",
-                Residuo_Informacoes: "Resíduo de Serviço de Saúde - Grupo A (Infectante), 5 Bombonas",
-                Data_Solicitacao: "2025-05-09", Hora_Solicitacao: "15:00",
-                Data_Agendamento_Coleta: "2025-05-13", Hora_Agendamento_Coleta: "11:00",
-                Status_Pedido: "concluido",
-                 Motivo_Cancelamento: null
-            },
-             {
-                ID_Pedido: "P005",
-                Geradora_Identificacao: "Oficina Épsilon Ltda (CNPJ: 77.888.999/0001-00)",
-                Geradora_Contato: "Pedro Martins - (51) 95555-5555 - pedro.martins@epsilon.com",
-                Endereco_Coleta: "Rua dos Andradas, 1213, Centro Histórico, Porto Alegre, RS, 90000-000",
-                Residuo_Informacoes: "Estopas contaminadas com óleo, 2 Sacos Grandes",
-                Data_Solicitacao: "2025-05-11", Hora_Solicitacao: "14:20",
-                Data_Agendamento_Coleta: "2025-05-18", Hora_Agendamento_Coleta: "16:00",
-                Status_Pedido: "cancelado",
-                Motivo_Cancelamento: "Cliente solicitou cancelamento por reagendamento interno."
-            }
+            { ID_Pedido: "P001", Geradora_Identificacao: "Empresa Alpha Ltda (CNPJ: 11.222.333/0001-44)", Geradora_Contato: "João Silva - (11) 99999-1111", Endereco_Coleta: "Rua das Palmeiras, 123, Centro, São Paulo, SP, 01000-000", Residuo_Informacoes: "Resíduo Classe II A - Não Inerte (Papelão, Plástico), Aprox. 5m³, Acondicionado em bags", Data_Solicitacao: "2025-05-10", Hora_Solicitacao: "09:30", Data_Agendamento_Coleta: "2025-05-15", Hora_Agendamento_Coleta: "14:00", Status_Pedido: "pendente", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-10T09:30:00", status: "pendente" }] },
+            { ID_Pedido: "P002", Geradora_Identificacao: "Indústria Beta S.A. (Cod: CLI-5678)", Geradora_Contato: "Maria Oliveira - (21) 98888-2222", Endereco_Coleta: "Av. Industrial, 456, Distrito Industrial, Rio de Janeiro, RJ, 20000-000", Residuo_Informacoes: "Resíduo Classe I - Perigoso (Óleo Contaminado), Aprox. 2 Tambores de 200L", Data_Solicitacao: "2025-05-11", Hora_Solicitacao: "11:00", Data_Agendamento_Coleta: "2025-05-16", Hora_Agendamento_Coleta: "10:00", Status_Pedido: "aceito", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-11T11:00:00", status: "pendente" }, { timestamp: "2025-05-12T15:00:00", status: "aceito" }] },
+            { ID_Pedido: "P003", Geradora_Identificacao: "Comércio Gama Eireli (CNPJ: 44.555.666/0001-77)", Geradora_Contato: "Carlos Pereira - (31) 97777-3333", Endereco_Coleta: "Praça da Liberdade, 789, Savassi, Belo Horizonte, MG, 30140-011", Residuo_Informacoes: "Resíduo Orgânico (Restaurante), Aprox. 100kg/dia, Contentores Plásticos", Data_Solicitacao: "2025-05-12", Hora_Solicitacao: "08:15", Data_Agendamento_Coleta: "2025-05-14", Hora_Agendamento_Coleta: "09:00", Status_Pedido: "em andamento", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-12T08:15:00", status: "pendente" }, { timestamp: "2025-05-13T10:00:00", status: "aceito" }, { timestamp: "2025-05-14T08:55:00", status: "em andamento" }] },
+            { ID_Pedido: "P004", Geradora_Identificacao: "Hospital Delta (Cod: HOSP-9101)", Geradora_Contato: "Ana Souza - (41) 96666-4444", Endereco_Coleta: "Alameda dos Anjos, 1011, Batel, Curitiba, PR, 80000-000", Residuo_Informacoes: "Resíduo de Serviço de Saúde - Grupo A (Infectante), 5 Bombonas", Data_Solicitacao: "2025-05-09", Hora_Solicitacao: "15:00", Data_Agendamento_Coleta: "2025-05-13", Hora_Agendamento_Coleta: "11:00", Status_Pedido: "concluido", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-09T15:00:00", status: "pendente" }, { timestamp: "2025-05-10T09:00:00", status: "aceito" }, { timestamp: "2025-05-13T10:50:00", status: "em andamento" }, { timestamp: "2025-05-13T14:30:00", status: "concluido" }] },
+            { ID_Pedido: "P005", Geradora_Identificacao: "Oficina Épsilon Ltda (CNPJ: 77.888.999/0001-00)", Geradora_Contato: "Pedro Martins - (51) 95555-5555", Endereco_Coleta: "Rua dos Andradas, 1213, Centro Histórico, Porto Alegre, RS, 90000-000", Residuo_Informacoes: "Estopas contaminadas com óleo, 2 Sacos Grandes", Data_Solicitacao: "2025-05-11", Hora_Solicitacao: "14:20", Data_Agendamento_Coleta: "2025-05-18", Hora_Agendamento_Coleta: "16:00", Status_Pedido: "cancelado", Motivo_Cancelamento: "Cliente solicitou cancelamento por reagendamento interno.", log: [{ timestamp: "2025-05-11T14:20:00", status: "pendente" }, { timestamp: "2025-05-15T10:00:00", status: "cancelado" }] },
+            { ID_Pedido: "P006", Geradora_Identificacao: "Supermercado Zeta Ltda", Geradora_Contato: "Ricardo Alves - (61) 94444-6666", Endereco_Coleta: "Quadra 10, Lote 5, Setor Comercial Sul, Brasília, DF, 70000-000", Residuo_Informacoes: "Papelão e Plástico, ~10m³", Data_Solicitacao: "2025-05-13", Hora_Solicitacao: "10:00", Data_Agendamento_Coleta: "2025-05-17", Hora_Agendamento_Coleta: "08:00", Status_Pedido: "pendente", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-13T10:00:00", status: "pendente" }] },
+            { ID_Pedido: "P007", Geradora_Identificacao: "Restaurante Ômega", Geradora_Contato: "Fernanda Lima - (71) 93333-7777", Endereco_Coleta: "Rua da Bahia, 55, Pelourinho, Salvador, BA, 40000-000", Residuo_Informacoes: "Orgânico, 3 contentores", Data_Solicitacao: "2025-05-14", Hora_Solicitacao: "11:30", Data_Agendamento_Coleta: "2025-05-19", Hora_Agendamento_Coleta: "10:00", Status_Pedido: "pendente", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-14T11:30:00", status: "pendente" }] },
+             { ID_Pedido: "P008", Geradora_Identificacao: "Condomínio Sigma Towers", Geradora_Contato: "Síndico Sr. Antunes - (81) 92222-8888", Endereco_Coleta: "Av. Boa Viagem, 1500, Boa Viagem, Recife, PE, 50000-000", Residuo_Informacoes: "Recicláveis Diversos (condomínio)", Data_Solicitacao: "2025-05-15", Hora_Solicitacao: "16:00", Data_Agendamento_Coleta: "2025-05-20", Hora_Agendamento_Coleta: "14:00", Status_Pedido: "aceito", Motivo_Cancelamento: null, log: [{ timestamp: "2025-05-15T16:00:00", status: "pendente" }, { timestamp: "2025-05-16T09:00:00", status: "aceito" }] },
         ];
-
+              /* eduardodev404 - (DOM) não esquecer de alterar isso*/
         const tabelaPedidosBody = document.getElementById('tabelaPedidos');
         const statusFilter = document.getElementById('statusFilter');
+        const geradoraFilter = document.getElementById('geradoraFilter');
+        const dataInicioFilter = document.getElementById('dataInicioFilter');
+        const dataFimFilter = document.getElementById('dataFimFilter');
+        const globalSearch = document.getElementById('globalSearch');
+        const clearFiltersButton = document.getElementById('clearFilters');
+        const exportCsvButton = document.getElementById('exportCsv');
         const pedidoModal = document.getElementById('pedidoModal');
         const modalPedidoId = document.getElementById('modalPedidoId');
         const modalGeradoraId = document.getElementById('modalGeradoraId');
@@ -230,73 +264,211 @@
         const modalDataSolicitacao = document.getElementById('modalDataSolicitacao');
         const modalDataAgendamento = document.getElementById('modalDataAgendamento');
         const modalStatusAtual = document.getElementById('modalStatusAtual');
+        const modalLogStatus = document.getElementById('modalLogStatus'); // Log
+        const modalAcoesContainer = document.getElementById('modalAcoesContainer');
         const modalAcoes = document.getElementById('modalAcoes');
         const noResults = document.getElementById('noResults');
         const motivoCancelamentoContainer = document.getElementById('motivoCancelamentoInputContainer');
         const motivoCancelamentoInput = document.getElementById('motivoCancelamentoInput');
         const modalMotivoCancelamentoContainer = document.getElementById('modalMotivoCancelamentoContainer');
         const modalMotivoCancelamento = document.getElementById('modalMotivoCancelamento');
+        const paginationControls = document.getElementById('paginationControls');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+        const pageInfoFrom = document.getElementById('pageInfoFrom');
+        const pageInfoTo = document.getElementById('pageInfoTo');
+        const pageInfoTotal = document.getElementById('pageInfoTotal');
+        const dashboardMetrics = document.getElementById('dashboardMetrics');
+        const toastContainer = document.getElementById('toastContainer');
+        const tableHeaders = document.querySelectorAll('th[data-sortable]');
 
         let pedidoSelecionadoId = null;
+        let currentPage = 1;
+        const itemsPerPage = 5;
+        let currentSortKey = 'Data_Agendamento_Coleta';
+        let currentSortDir = 'asc';
+        let filteredPedidosCache = [];
 
         function formatarData(dataISO) {
-            if (!dataISO) return '-';
+             if (!dataISO) return '-';
             const [ano, mes, dia] = dataISO.split('-');
             return `${dia}/${mes}/${ano}`;
         }
-
         function formatarHora(hora) {
-            return hora ? hora.substring(0, 5) : '-';
-        }
+             return hora ? hora.substring(0, 5) : '-';
+         }
+        function formatarTimestamp(timestampISO) {
+            if (!timestampISO) return '-';
+            const data = new Date(timestampISO);
 
-        function getStatusInfo(status) {
-            switch (status) {
-                case 'pendente': return { text: 'Pendente', class: 'status-pendente' };
-                case 'aceito': return { text: 'Aceito', class: 'status-aceito' };
-                case 'em andamento': return { text: 'Em Andamento', class: 'status-em-andamento' };
-                case 'concluido': return { text: 'Concluído', class: 'status-concluido' };
-                case 'cancelado': return { text: 'Cancelado', class: 'status-cancelado' };
-                default: return { text: status, class: 'bg-gray-200 text-gray-800' };
+            if (isNaN(data.getTime())) {
+                return '-';
             }
+            return data.toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+        function getStatusInfo(status) {
+             let icon = 'circle-help';
+             let text = status;
+             let badgeClass = 'bg-gray-200 text-gray-800 border-gray-400';
+
+             switch (status) {
+                case 'pendente': icon = 'hourglass'; text = 'Pendente'; badgeClass = 'status-pendente'; break;
+                case 'aceito': icon = 'check-circle'; text = 'Aceito'; badgeClass = 'status-aceito'; break;
+                case 'em andamento': icon = 'truck'; text = 'Em Andamento'; badgeClass = 'status-em-andamento'; break;
+                case 'concluido': icon = 'check-check'; text = 'Concluído'; badgeClass = 'status-concluido'; break;
+                case 'cancelado': icon = 'x-circle'; text = 'Cancelado'; badgeClass = 'status-cancelado'; break;
+             }
+             return { text, badgeClass, icon };
         }
 
-        function renderizarTabela(pedidosFiltrados) {
-            tabelaPedidosBody.innerHTML = '';
-            noResults.style.display = pedidosFiltrados.length === 0 ? 'block' : 'none';
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
 
-            pedidosFiltrados.forEach(pedido => {
+            toast.offsetHeight;
+
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 500);
+            }, 3000);
+        }
+
+        function atualizarDashboard() {
+            const counts = pedidos.reduce((acc, p) => {
+                acc[p.Status_Pedido] = (acc[p.Status_Pedido] || 0) + 1;
+                return acc;
+            }, {});
+
+            const allStatuses = ['pendente', 'aceito', 'em andamento', 'concluido', 'cancelado'];
+            dashboardMetrics.innerHTML = '';
+
+            allStatuses.forEach(status => {
+                const count = counts[status] || 0;
+                const statusInfo = getStatusInfo(status);
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-lg border ${statusInfo.badgeClass.replace('bg-', 'border-').replace('text-', 'border-')} bg-opacity-10`;
+                div.innerHTML = `
+                    <div class="text-2xl font-bold ${statusInfo.badgeClass.replace('bg-', 'text-')}">${count}</div>
+                    <div class="text-xs font-medium text-gray-600 mt-1 flex items-center justify-center gap-1">
+                        <i data-lucide="${statusInfo.icon}" class="w-3 h-3"></i> ${statusInfo.text}
+                    </div>
+                `;
+                dashboardMetrics.appendChild(div);
+            });
+             if (window.lucide) lucide.createIcons();
+        }
+
+        function renderizarTabela() {
+            tabelaPedidosBody.innerHTML = '';
+
+            const status = statusFilter.value;
+            const geradora = geradoraFilter.value.toLowerCase();
+            const dataInicio = dataInicioFilter.value;
+            const dataFim = dataFimFilter.value;
+            const busca = globalSearch.value.toLowerCase();
+
+            let pedidosFiltrados = pedidos.filter(p => {
+                const matchStatus = status === 'todos' || p.Status_Pedido === status;
+                const matchGeradora = !geradora || p.Geradora_Identificacao.toLowerCase().includes(geradora);
+                const matchDataInicio = !dataInicio || p.Data_Agendamento_Coleta >= dataInicio;
+                const matchDataFim = !dataFim || p.Data_Agendamento_Coleta <= dataFim;
+                const matchBusca = !busca ||
+                    p.ID_Pedido.toLowerCase().includes(busca) ||
+                    p.Geradora_Identificacao.toLowerCase().includes(busca) ||
+                    p.Endereco_Coleta.toLowerCase().includes(busca) ||
+                    p.Residuo_Informacoes.toLowerCase().includes(busca);
+
+                return matchStatus && matchGeradora && matchDataInicio && matchDataFim && matchBusca;
+            });
+
+            pedidosFiltrados.sort((a, b) => {
+                let valA = a[currentSortKey];
+                let valB = b[currentSortKey];
+
+                if (currentSortKey.includes('Data')) {
+                    valA = new Date(valA || 0);
+                    valB = new Date(valB || 0);
+                } else if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return currentSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            filteredPedidosCache = pedidosFiltrados;
+
+            const totalItems = pedidosFiltrados.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            currentPage = Math.max(1, Math.min(currentPage, totalPages));
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pedidosPaginados = pedidosFiltrados.slice(startIndex, endIndex);
+
+             noResults.style.display = pedidosPaginados.length === 0 ? 'block' : 'none';
+             paginationControls.style.display = totalItems > 0 ? 'flex' : 'none';
+
+            pedidosPaginados.forEach(pedido => {
                 const statusInfo = getStatusInfo(pedido.Status_Pedido);
                 const enderecoResumido = pedido.Endereco_Coleta.split(',').slice(0, 3).join(',');
 
                 const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors duration-150";
                 tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" data-label="ID Pedido">${pedido.ID_Pedido}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500" data-label="Geradora">${pedido.Geradora_Identificacao.split('(')[0].trim()}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500" data-label="Data Agendada">${formatarData(pedido.Data_Agendamento_Coleta)} ${formatarHora(pedido.Hora_Agendamento_Coleta)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" data-label="Endereço">${enderecoResumido}...</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900" data-label="ID Pedido">${pedido.ID_Pedido}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600" data-label="Geradora">${pedido.Geradora_Identificacao.split('(')[0].trim()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600" data-label="Data Agendada">${formatarData(pedido.Data_Agendamento_Coleta)} ${formatarHora(pedido.Hora_Agendamento_Coleta)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" data-label="Endereço" title="${pedido.Endereco_Coleta}">${enderecoResumido}...</td>
                     <td class="px-4 py-3 whitespace-nowrap" data-label="Status">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusInfo.class}">
-                            ${statusInfo.text}
+                        <span class="status-badge ${statusInfo.badgeClass}">
+                           <i data-lucide="${statusInfo.icon}" class="w-3 h-3"></i> ${statusInfo.text}
                         </span>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm font-medium" data-label="Ações">
-                        <button onclick="abrirModal('${pedido.ID_Pedido}')" class="text-indigo-600 hover:text-indigo-900 focus:outline-none">
-                            Detalhes/Ações
+                        <button onclick="abrirModal('${pedido.ID_Pedido}')" class="text-indigo-600 hover:text-indigo-900 focus:outline-none inline-flex items-center gap-1 text-xs py-1 px-2 rounded hover:bg-indigo-50">
+                           <i data-lucide="eye" class="w-3.5 h-3.5"></i> Detalhes
                         </button>
                     </td>
                 `;
                 tabelaPedidosBody.appendChild(tr);
             });
 
-             if (window.lucide) {
-                lucide.createIcons();
-            }
+            pageInfoFrom.textContent = totalItems === 0 ? 0 : startIndex + 1;
+            pageInfoTo.textContent = Math.min(endIndex, totalItems);
+            pageInfoTotal.textContent = totalItems;
+            prevPageButton.disabled = currentPage === 1;
+            nextPageButton.disabled = currentPage === totalPages || totalItems === 0;
+
+             updateSortIndicators();
+
+            if (window.lucide) lucide.createIcons();
         }
 
-        function filtrarPedidos() {
-            const status = statusFilter.value;
-            const pedidosFiltrados = pedidos.filter(p => status === 'todos' || p.Status_Pedido === status);
-            renderizarTabela(pedidosFiltrados);
+        function updateSortIndicators() {
+             tableHeaders.forEach(th => {
+                 const key = th.getAttribute('data-sort-key');
+                 const indicator = th.querySelector('.sort-indicator');
+                 indicator.innerHTML = '';
+                 if (key === currentSortKey) {
+                     th.classList.add('sorted', 'text-gray-900');
+                     indicator.innerHTML = `<i data-lucide="${currentSortDir === 'asc' ? 'arrow-up' : 'arrow-down'}" class="w-3.5 h-3.5"></i>`;
+                 } else {
+                     th.classList.remove('sorted', 'text-gray-900');
+                 }
+             });
+             if (window.lucide) lucide.createIcons();
         }
 
         function abrirModal(idPedido) {
@@ -313,8 +485,8 @@
             modalDataAgendamento.textContent = `${formatarData(pedido.Data_Agendamento_Coleta)} ${formatarHora(pedido.Hora_Agendamento_Coleta)}`;
 
             const statusInfo = getStatusInfo(pedido.Status_Pedido);
-            modalStatusAtual.textContent = statusInfo.text;
-            modalStatusAtual.className = `px-2 py-1 rounded-md text-xs font-medium ${statusInfo.class}`;
+            modalStatusAtual.innerHTML = `<i data-lucide="${statusInfo.icon}" class="w-3.5 h-3.5"></i> ${statusInfo.text}`;
+            modalStatusAtual.className = `status-badge ${statusInfo.badgeClass}`;
 
             if (pedido.Status_Pedido === 'cancelado' && pedido.Motivo_Cancelamento) {
                 modalMotivoCancelamento.textContent = pedido.Motivo_Cancelamento;
@@ -323,32 +495,45 @@
                 modalMotivoCancelamentoContainer.style.display = 'none';
             }
 
+            modalLogStatus.innerHTML = '';
+             if (pedido.log && pedido.log.length > 0) {
+                pedido.log.slice().reverse().forEach(entry => {
+                    const logStatusInfo = getStatusInfo(entry.status);
+                    const li = document.createElement('li');
+                    li.innerHTML = `(${formatarTimestamp(entry.timestamp)}) - Status alterado para <span class="font-semibold ${logStatusInfo.badgeClass.replace('bg-','text-')}">${logStatusInfo.text}</span>`;
+                    modalLogStatus.appendChild(li);
+                });
+            } else {
+                 modalLogStatus.innerHTML = '<li>Nenhum histórico de status disponível.</li>';
+            }
+
             modalAcoes.innerHTML = '';
             motivoCancelamentoContainer.style.display = 'none';
+            modalAcoesContainer.style.display = 'block';
 
+            const btnClasses = "px-3 py-1.5 text-white text-xs rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 inline-flex items-center gap-1.5 transition-colors duration-150";
             if (pedido.Status_Pedido === 'pendente') {
-                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'aceito')" class="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Marcar como Aceito</button>`;
-                modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Cancelar Pedido</button>`;
+                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'aceito')" class="${btnClasses} bg-blue-500 hover:bg-blue-600 focus:ring-blue-500"><i data-lucide="check-circle" class="w-4 h-4"></i> Aceitar</button>`;
+                modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="${btnClasses} bg-red-500 hover:bg-red-600 focus:ring-red-500"><i data-lucide="x-circle" class="w-4 h-4"></i> Cancelar</button>`;
             } else if (pedido.Status_Pedido === 'aceito') {
-                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'em andamento')" class="px-3 py-1.5 bg-orange-500 text-white text-xs rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">Iniciar Coleta (Em Andamento)</button>`;
-                 modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Cancelar Pedido</button>`;
+                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'em andamento')" class="${btnClasses} bg-orange-500 hover:bg-orange-600 focus:ring-orange-500"><i data-lucide="truck" class="w-4 h-4"></i> Iniciar Coleta</button>`;
+                 modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="${btnClasses} bg-red-500 hover:bg-red-600 focus:ring-red-500"><i data-lucide="x-circle" class="w-4 h-4"></i> Cancelar</button>`;
             } else if (pedido.Status_Pedido === 'em andamento') {
-                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'concluido')" class="px-3 py-1.5 bg-green-500 text-white text-xs rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Marcar como Concluído</button>`;
-
-                /*modalAcoes.innerHTML += `<button onclick="iniciarCancelamento()" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600">Cancelar Pedido</button>`;*/
+                modalAcoes.innerHTML += `<button onclick="atualizarStatus('${idPedido}', 'concluido')" class="${btnClasses} bg-green-500 hover:bg-green-600 focus:ring-green-500"><i data-lucide="check-check" class="w-4 h-4"></i> Concluir</button>`;
             }
-            
              else if (pedido.Status_Pedido === 'concluido' || pedido.Status_Pedido === 'cancelado') {
-                 modalAcoes.innerHTML = '<p class="text-sm text-gray-500">Nenhuma ação disponível para este status.</p>';
+                 modalAcoes.innerHTML = '<p class="text-sm text-gray-500 italic">Nenhuma ação disponível para este status.</p>';
              }
 
             pedidoModal.style.display = 'flex';
+             if (window.lucide) lucide.createIcons();
         }
-        
+
         function fecharModal() {
             pedidoModal.style.display = 'none';
             motivoCancelamentoContainer.style.display = 'none';
             motivoCancelamentoInput.value = '';
+            modalAcoesContainer.style.display = 'block';
             pedidoSelecionadoId = null;
         }
 
@@ -356,44 +541,143 @@
             const index = pedidos.findIndex(p => p.ID_Pedido === idPedido);
             if (index !== -1) {
                 pedidos[index].Status_Pedido = novoStatus;
+
+                if (!pedidos[index].log) pedidos[index].log = [];
+                pedidos[index].log.push({ timestamp: new Date().toISOString(), status: novoStatus });
+
                  if (novoStatus === 'cancelado') {
                     pedidos[index].Motivo_Cancelamento = motivo;
                 } else {
                      pedidos[index].Motivo_Cancelamento = null;
                  }
                 console.log(`Pedido ${idPedido} atualizado para ${novoStatus}`);
-                filtrarPedidos();
+                renderizarTabela();
+                atualizarDashboard();
                 fecharModal();
+                showToast(`Pedido ${idPedido} atualizado para ${getStatusInfo(novoStatus).text}!`, 'success');
+            } else {
+                 showToast(`Erro ao atualizar pedido ${idPedido}.`, 'error');
             }
         }
 
         function iniciarCancelamento() {
-            modalAcoes.style.display = 'none';
+            modalAcoesContainer.style.display = 'none';
             motivoCancelamentoContainer.style.display = 'block';
+             if (window.lucide) lucide.createIcons();
         }
-
         function confirmarCancelamento() {
             const motivo = motivoCancelamentoInput.value.trim();
             if (!motivo) {
-                alert("Por favor, informe o motivo do cancelamento.");
+                showToast("Por favor, informe o motivo do cancelamento.", 'error');
+
                 return;
             }
             if (pedidoSelecionadoId) {
                 atualizarStatus(pedidoSelecionadoId, 'cancelado', motivo);
-            }
-            
-            motivoCancelamentoInput.value = '';
-            motivoCancelamentoContainer.style.display = 'none';
-            modalAcoes.style.display = 'flex';
-        }
 
+            }
+
+        }
         function cancelarAcaoCancelamento() {
              motivoCancelamentoInput.value = '';
              motivoCancelamentoContainer.style.display = 'none';
-             modalAcoes.style.display = 'flex';
+             modalAcoesContainer.style.display = 'block';
+             if(pedidoSelecionadoId) abrirModal(pedidoSelecionadoId);
+
         }
 
-        statusFilter.addEventListener('change', filtrarPedidos);
+        function exportarParaCsv() {
+            if (filteredPedidosCache.length === 0) {
+                showToast("Nenhum dado para exportar com os filtros atuais.", "error");
+                return;
+            }
+
+            const header = [
+                "ID_Pedido", "Geradora_Identificacao", "Geradora_Contato", "Endereco_Coleta",
+                "Residuo_Informacoes", "Data_Solicitacao", "Hora_Solicitacao",
+                "Data_Agendamento_Coleta", "Hora_Agendamento_Coleta", "Status_Pedido", "Motivo_Cancelamento"
+            ];
+
+            const rows = filteredPedidosCache.map(p => [
+                p.ID_Pedido,
+                `"${p.Geradora_Identificacao.replace(/"/g, '""')}"`,
+                `"${p.Geradora_Contato.replace(/"/g, '""')}"`,
+                `"${p.Endereco_Coleta.replace(/"/g, '""')}"`,
+                `"${p.Residuo_Informacoes.replace(/"/g, '""')}"`,
+                p.Data_Solicitacao,
+                p.Hora_Solicitacao,
+                p.Data_Agendamento_Coleta,
+                p.Hora_Agendamento_Coleta,
+                p.Status_Pedido,
+                p.Motivo_Cancelamento ? `"${p.Motivo_Cancelamento.replace(/"/g, '""')}"` : "" 
+            ]);
+
+            let csvContent = "data:text/csv;charset=utf-8,"
+                + header.join(",") + "\n"
+                + rows.map(e => e.join(",")).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `pedidos_coleta_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Exportação CSV iniciada.", "success");
+        }
+
+        function limparFiltros() {
+            statusFilter.value = 'todos';
+            geradoraFilter.value = '';
+            dataInicioFilter.value = '';
+            dataFimFilter.value = '';
+            globalSearch.value = '';
+            currentPage = 1;
+            currentSortKey = 'Data_Agendamento_Coleta';
+            currentSortDir = 'asc';
+            renderizarTabela();
+            showToast("Filtros limpos.", "success");
+        }
+
+        statusFilter.addEventListener('input', () => { currentPage = 1; renderizarTabela(); });
+        geradoraFilter.addEventListener('input', () => { currentPage = 1; renderizarTabela(); });
+        dataInicioFilter.addEventListener('change', () => { currentPage = 1; renderizarTabela(); });
+        dataFimFilter.addEventListener('change', () => { currentPage = 1; renderizarTabela(); });
+        globalSearch.addEventListener('input', () => { currentPage = 1; renderizarTabela(); });
+        clearFiltersButton.addEventListener('click', limparFiltros);
+        exportCsvButton.addEventListener('click', exportarParaCsv);
+
+        prevPageButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderizarTabela();
+            }
+        });
+        nextPageButton.addEventListener('click', () => {
+             const totalItems = filteredPedidosCache.length;
+             const totalPages = Math.ceil(totalItems / itemsPerPage);
+             if (currentPage < totalPages) {
+                 currentPage++;
+                 renderizarTabela();
+            }
+        });
+
+         tableHeaders.forEach(header => {
+             header.addEventListener('click', () => {
+                 const key = header.getAttribute('data-sort-key');
+                 if (currentSortKey === key) {
+
+                     currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+                 } else {
+
+                     currentSortKey = key;
+                     currentSortDir = 'asc';
+                 }
+                 currentPage = 1;
+                 renderizarTabela();
+             });
+         });
+
         window.onclick = function(event) {
             if (event.target == pedidoModal) {
                 fecharModal();
@@ -401,10 +685,12 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            filtrarPedidos();
-
-             if (window.lucide) {
+            renderizarTabela();
+            atualizarDashboard();
+            if (window.lucide) {
                 lucide.createIcons();
+            } else {
+                console.warn("Lucide icons library not loaded.");
             }
         });
 
