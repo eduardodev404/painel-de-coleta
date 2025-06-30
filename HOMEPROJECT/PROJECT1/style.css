@@ -1,0 +1,38 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between; /* Espaça logo e links para as extremidades */
+    align-items: center; /* Alinha itens verticalmente no centro */
+    background-color: #333; /* Cor de fundo da navbar */
+    padding: 10px 20px; /* Espaçamento interno da navbar */
+}
+
+.navbar .logo img {
+    height: 40px; /* Ajusta a altura do logo */
+    width: auto; /* Mantém a proporção da imagem */
+}
+
+.nav-links {
+    list-style: none; /* Remove marcadores da lista */
+    margin: 0;
+    padding: 0;
+    display: flex; /* Coloca os itens da lista em linha */
+}
+
+.nav-links li {
+    margin: 0 15px; /* Espaçamento entre os itens do menu */
+}
+
+.nav-links a {
+    color: white; /* Cor do texto dos links */
+    text-decoration: none; /* Remove o sublinhado dos links */
+    font-size: 16px; /* Tamanho da fonte dos links */
+}
+
+.nav-links a:hover {
+    text-decoration: underline; /* Sublinha o link ao passar o mouse */
+}
