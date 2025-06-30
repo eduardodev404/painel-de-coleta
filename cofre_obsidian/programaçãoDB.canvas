@@ -1,0 +1,11 @@
+{
+	"nodes":[
+		{"id":"894252b4e4702405","x":-420,"y":-240,"width":250,"height":60,"color":"5","type":"text","text":"programação em banco de dados"},
+		{"id":"e2983a17accb4cb8","x":-200,"y":-140,"width":250,"height":60,"type":"text","text":"operadores SQL"},
+		{"id":"3b3a8830a4ce87d8","x":-200,"y":0,"width":250,"height":60,"type":"text","text":"funções SQL"}
+	],
+	"edges":[
+		{"id":"8e115a8c2af93d7e","fromNode":"894252b4e4702405","fromSide":"right","toNode":"e2983a17accb4cb8","toSide":"top"},
+		{"id":"ed97e7ae9bf6e908","fromNode":"e2983a17accb4cb8","fromSide":"bottom","toNode":"3b3a8830a4ce87d8","toSide":"top"}
+	]
+}
